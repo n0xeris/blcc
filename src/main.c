@@ -112,6 +112,11 @@ void generate_header_file(char *input_filepath, const char *output_dir) {
 int main(int argc, char **argv) {
     const char *output_dir = ".";
 
+    if (argc < 2) {
+	puts("Usage: blcc [-o <output_dir>] <binary_file>...");
+	return EXIT_FAILURE;
+    }
+
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "-o") == 0 && i + 1 < argc) {
             output_dir = argv[++i];
