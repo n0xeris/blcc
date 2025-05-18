@@ -22,7 +22,7 @@ void fix_filename(char *str) {
 
 char* extract_filename(const char *path) {
     if (path == NULL || strlen(path) == 0) {
-        return NULL; // Return an empty string if the input is invalid
+        return NULL;
     }
 
     const char *base = basename((char *)path);
