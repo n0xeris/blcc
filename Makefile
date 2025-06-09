@@ -15,7 +15,7 @@ CCFLAGS = -std=c17 -Wall -Wextra -Wpedantic -Wshadow -Wwrite-strings \
 	-Wold-style-definition -Wmissing-include-dirs
 
 INCLUDES = -I$(SRCDIR)
-LIBRARIES =
+LIBRARIES = -lm
 
 DEBUGFLAGS = -g -O0
 RELEASEFLAGS = -O3

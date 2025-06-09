@@ -2,9 +2,13 @@
 #include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <dirent.h>
 #include <sys/stat.h>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 #define MAX_FILENAME_LENGTH 256
 
@@ -38,7 +42,7 @@ char* extract_filename(const char *path) {
 }
 
 
-void generate_header_file(char *input_filepath, const char *output_dir) {
+void generate_header_file(char *input_filepath, const char *output_dir, bool is_image) {
     FILE *in_file = fopen(input_filepath, "rb");
     if (in_file == NULL) {
         perror("Error opening input file");
@@ -51,18 +55,45 @@ void generate_header_file(char *input_filepath, const char *output_dir) {
         return;
     }
 
-    fseek(in_file, 0, SEEK_END);
-    size_t file_size = ftell(in_file);
-    fseek(in_file, 0, SEEK_SET);
+    unsigned char *data;
+    size_t file_size = 0, bytes_read = 0;
+    int    image_w = 0,  image_h = 0;
 
-    unsigned char *data = (unsigned char *)malloc(file_size * sizeof(unsigned char));
-    if (data == NULL) {
-        perror("Error allocating memory");
-        fclose(in_file);
-        return;
+    if (is_image) {
+        // 1. read pixels with stb_image
+        char *dot = strrchr(input_filepath, '.');
+        bool flip_h = (dot && !strcmp(dot, ".png"));
+
+        stbi_set_flip_vertically_on_load_thread(flip_h);
+
+        int channels = 0;
+        data = stbi_load_from_file(in_file, &image_w, &image_h, &channels, 0);
+
+        if (data == NULL) {
+            perror("Error reading image!");
+            fclose(in_file);
+            return;
+        }
+
+        file_size = image_w * image_h * channels;
+        bytes_read = image_w * image_h * channels;
+
+        // 2. store pixels in the header instead
+    } else {
+        fseek(in_file, 0, SEEK_END);
+        file_size = ftell(in_file);
+        fseek(in_file, 0, SEEK_SET);
+
+        data = (unsigned char *)malloc(file_size * sizeof(unsigned char));
+        if (data == NULL) {
+            perror("Error allocating memory");
+            fclose(in_file);
+            return;
+        }
+
+        bytes_read = fread(data, 1, file_size, in_file);
     }
 
-    size_t bytes_read = fread(data, 1, file_size, in_file);
     if (bytes_read != file_size) {
         perror("Error reading file");
         free(data);
@@ -84,7 +115,13 @@ void generate_header_file(char *input_filepath, const char *output_dir) {
 
     fprintf(out_file, "#ifndef BINARY_DATA_%s_H\n", input_filename);
     fprintf(out_file, "#define BINARY_DATA_%s_H\n", input_filename);
-    fprintf(out_file, "#define BINARY_DATA_%s_SIZE %zu\n\n", input_filename, bytes_read);
+    fprintf(out_file, "#define BINARY_DATA_%s_SIZE %zu\n", input_filename, bytes_read);
+
+    if (is_image) {
+        fprintf(out_file, "#define BINARY_DATA_%s_IMAGE_WIDTH %d\n", input_filename, image_w);
+        fprintf(out_file, "#define BINARY_DATA_%s_IMAGE_HEIGHT %d\n\n", input_filename, image_h);
+    }
+
     fprintf(out_file, "unsigned char binary_data_%s[] = {\n\t", input_filename);
 
     for (size_t i = 0; i < bytes_read; ++i) {
@@ -111,15 +148,21 @@ void generate_header_file(char *input_filepath, const char *output_dir) {
 
 int main(int argc, char **argv) {
     const char *output_dir = ".";
+    bool is_image = false;
 
     if (argc < 2) {
-	puts("Usage: blcc [-o <output_dir>] <binary_file>...");
+	puts("Usage: blcc [-o <output_dir>] [--image] <binary_file>...");
 	return EXIT_FAILURE;
     }
 
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "-o") == 0 && i + 1 < argc) {
             output_dir = argv[++i];
+            continue;
+        }
+
+        if (strcmp(argv[i], "--image") == 0 && i + 1 < argc) {
+            is_image = true;
             continue;
         }
 
@@ -133,7 +176,7 @@ int main(int argc, char **argv) {
             closedir(dir);
         }
 
-        generate_header_file(argv[i], output_dir);
+        generate_header_file(argv[i], output_dir, is_image);
     }
 
     return EXIT_SUCCESS;
