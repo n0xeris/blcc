@@ -33,3 +33,28 @@ unsigned char binary_data_file1_png[] = {
 
 #endif // BINARY_DATA_file1_png_H
 ```
+
+
+Also supports serializing loaded images with the `--image` flag:
+```sh
+$ blcc -o <output_dir> --image file1.png
+```
+
+The output will be something like:
+```c
+#ifndef BINARY_DATA_file1_png_H
+#define BINARY_DATA_file1_png_H
+#define BINARY_DATA_file1_png_SIZE 388800
+#define BINARY_DATA_file1_png_IMAGE_WIDTH 360
+#define BINARY_DATA_file1_png_IMAGE_HEIGHT 360
+
+unsigned char binary_data_file1_png[] = {
+	0x00, 0x00, 0x29, 0x19, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x29, 0x19, 0x00,
+	// ...
+	0x55, 0x5C, 0x3D, 0x55, 0x50, 0x5F, 0x54,
+	0x5C, 0x3D, 0x55, 0x16, 0x3D, 0x55, 0x5C
+};
+
+#endif // BINARY_DATA_file1_png_H
+```
